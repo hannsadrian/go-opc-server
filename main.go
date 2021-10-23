@@ -124,5 +124,5 @@ func displayPixels(engine wsEngine, channel int, pixels [][]int) {
 }
 
 func rgbToColor(c []int) uint32 {
-	return uint32(((c[0]>>8)&0xff)<<16 + ((c[1]>>8)&0xff)<<8 + ((c[2] >> 8) & 0xff))
+	return ((uint32(c[0])>>8)&0xff)<<16 + ((uint32(c[1])>>8)&0xff)<<8 + ((uint32(c[2]) >> 8) & 0xff)
 }
