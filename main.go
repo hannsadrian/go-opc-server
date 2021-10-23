@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
+	"strconv"
 )
 
 var gamma8 = []byte{
@@ -124,5 +125,9 @@ func displayPixels(engine wsEngine, channel int, pixels [][]int) {
 }
 
 func rgbToColor(c []int) uint32 {
-	return ((uint32(c[0])>>8)&0xff)<<16 + ((uint32(c[1])>>8)&0xff)<<8 + ((uint32(c[2]) >> 8) & 0xff)
+	i, err := strconv.ParseUint(fmt.Sprintf("%02x", c[0]) + fmt.Sprintf("%02x", c[1]) + fmt.Sprintf("%02x", c[2]), 16, 32)
+	if err != nil {
+		return 0
+	}
+	return uint32(i)
 }
