@@ -2,10 +2,11 @@ package domain
 
 import (
 	"fmt"
-	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
+	ws281x "github.com/rpi-ws281x/rpi-ws281x-go"
 	"strconv"
 )
 
+// gamma8 is a calibration byte array for the LEDs
 var gamma8 = []byte{
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
@@ -25,6 +26,7 @@ var gamma8 = []byte{
 	215, 218, 220, 223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255,
 }
 
+// wsEngine represents the capabilities of the ws281x library
 type wsEngine interface {
 	Init() error
 	Render() error
@@ -33,15 +35,17 @@ type wsEngine interface {
 	Leds(channel int) []uint32
 }
 
-var Ws2811DefaultOptions = ws2811.Option{
-	Frequency: ws2811.TargetFreq,
-	DmaNum:    ws2811.DefaultDmaNum,
-	Channels: []ws2811.ChannelOption{
+// Ws281xDefaultOptions holds configuration for the ws281x library
+// that is adjusted to a setup of two led strands with a length of ten pixels
+var Ws281xDefaultOptions = ws281x.Option{
+	Frequency: ws281x.TargetFreq,
+	DmaNum:    ws281x.DefaultDmaNum,
+	Channels: []ws281x.ChannelOption{
 		{
 			GpioPin:    18,
 			LedCount:   10,
 			Brightness: 255,
-			StripeType: ws2811.WS2812Strip,
+			StripeType: ws281x.WS2812Strip,
 			Invert:     false,
 			Gamma:      gamma8,
 		},
@@ -49,38 +53,57 @@ var Ws2811DefaultOptions = ws2811.Option{
 			GpioPin:    13,
 			LedCount:   10,
 			Brightness: 255,
-			StripeType: ws2811.WS2812Strip,
+			StripeType: ws281x.WS2812Strip,
 			Invert:     false,
 			Gamma:      gamma8,
 		},
 	},
 }
 
-type Ws2811Driver struct {
-	Options ws2811.Option
+// Ws281xDriver implements the dao.Driver interface along with
+// custom properties specific to the ws281x library
+type Ws281xDriver struct {
+	Options ws281x.Option
 	Engine wsEngine
 }
 
-func (d *Ws2811Driver) GetInstance() interface{} {
+// GetInstance returns the ws281xDriver instance
+func (d *Ws281xDriver) GetInstance() interface{} {
 	return d
 }
 
-func (d *Ws2811Driver) Setup() error {
-	err := d.Engine.Init()
+// Setup initializes the ws281x library
+func (d *Ws281xDriver) Setup(untypedOptions interface{}) error {
+	options, ok := untypedOptions.(ws281x.Option)
+	if !ok {
+		return fmt.Errorf("given interface could not be parsed to ws281x.Option")
+	}
+
+	engine, err := ws281x.MakeWS2811(&options)
+	if err != nil {
+		return err
+	}
+	d.Options = options
+	d.Engine = engine
+
+	err = d.Engine.Init()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d *Ws2811Driver) Display(channel int, pixels [][]int) {
+// Display calls displayPixels to change the state of the LED's
+func (d *Ws281xDriver) Display(channel int, pixels [][]int) {
 	displayPixels(d.Engine, channel, pixels)
 }
 
-func (d *Ws2811Driver) Unregister() {
+// Unregister takes care of cleanup for the ws281x library
+func (d *Ws281xDriver) Unregister() {
 	d.Engine.Fini()
 }
 
+// displayPixels interfaces with wsEngine to display pixel data
 func displayPixels(engine wsEngine, channel int, pixels [][]int) {
 	for i := 0; i < len(engine.Leds(channel)) && i < len(pixels); i++ {
 		engine.Leds(channel)[i] = rgbToColor(pixels[i])
@@ -88,6 +111,8 @@ func displayPixels(engine wsEngine, channel int, pixels [][]int) {
 	}
 }
 
+// rgbToColor converts an array of [r,g,b] values from 0 to 255
+// into a hex value represented by an uint32
 func rgbToColor(c []int) uint32 {
 	i, err := strconv.ParseUint(
 		fmt.Sprintf("%02x", c[0]) +

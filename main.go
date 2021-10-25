@@ -4,52 +4,41 @@ import (
 	"fmt"
 	"github.com/adwirawien/go-opc-server/dao"
 	"github.com/adwirawien/go-opc-server/domain"
-	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 	"net"
 	"os"
 )
 
 func main() {
-	// TODO: refactor the Ws2811Driver loading to be based on settings provided by a config file!
-	opt := domain.Ws2811DefaultOptions
-	engine, err := ws2811.MakeWS2811(&opt)
-	if err != nil {
-		panic(err)
-	}
-	driver := domain.Ws2811Driver{
-		Options: opt,
-		Engine:  engine,
-	}
-
-
-	err = driver.Setup()
+	// setup domain object
+	driver := domain.Ws281xDriver{}
+	err := driver.Setup(domain.Ws281xDefaultOptions)
 	if err != nil {
 		panic(err)
 	}
 	defer driver.Unregister()
 
-
 	// listen on all interfaces
-	l, err := net.Listen("tcp", "0.0.0.0:7890")
+	address := "0.0.0.0:7890"
+	l, err := net.Listen("tcp", address)
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
 		os.Exit(1)
 	}
-	// Close the listener when the application closes.
+	fmt.Printf("Listening on %s", address)
 	defer l.Close()
-	fmt.Println("Listening on " + "0.0.0.0" + ":" + "7890")
+
 	for {
-		// Listen for an incoming connection.
+		// accept new connections and parse them
 		conn, err := l.Accept()
 		if err != nil {
 			fmt.Println("Error accepting: ", err.Error())
 			os.Exit(1)
 		}
-		// Handle connections in a new goroutine.
 		go handleOPCRequest(&driver, conn)
 	}
 }
 
+// handleOPCRequest is responsible for handling an incoming connection and the transmitted data respectively
 func handleOPCRequest(driver dao.Driver, conn net.Conn) {
 	for {
 		buf := make([]byte, 65539)
@@ -58,17 +47,23 @@ func handleOPCRequest(driver dao.Driver, conn net.Conn) {
 			fmt.Println("Connection closing:", err.Error())
 			return
 		}
+
+		// parse header bytes with opc information
 		channel := int(buf[0])
 		command := int(buf[1]) // FIXME: currently only command 0 for 8-bit pixel colors is supported!
 		length := (int(buf[2]) << 8) + int(buf[3])
+
+		// parse pixel information
 		pixels := make([][]int, 0, 21845)
 		fmt.Printf("Chan: %d, Cmd: %d, Len: %d \n", channel, command, length)
 		for i := 0; i < length; i += 3 {
+			// use 4 byte offset due to the header bytes at the buffer start
 			r := int(buf[4+i+0])
 			g := int(buf[4+i+1])
 			b := int(buf[4+i+2])
 			pixels = append(pixels, []int{r, g, b})
 		}
+
 		go driver.Display(channel, pixels)
 	}
 }
