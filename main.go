@@ -1,9 +1,9 @@
 package main
 
 import (
-	"./dao"
-	"./domain"
 	"fmt"
+	"github.com/adwirawien/go-opc-server/dao"
+	"github.com/adwirawien/go-opc-server/domain"
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 	"net"
 	"os"
