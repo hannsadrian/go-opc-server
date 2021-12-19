@@ -3,7 +3,6 @@ package domain
 import (
 	"fmt"
 	ws281x "github.com/rpi-ws281x/rpi-ws281x-go"
-	"strconv"
 )
 
 // gamma8 is a calibration byte array for the LEDs
@@ -106,23 +105,13 @@ func (d *Ws281xDriver) Unregister() {
 // displayPixels interfaces with wsEngine to display pixel data
 func displayPixels(engine wsEngine, channel int, pixels [][]int) {
 	for i := 0; i < len(engine.Leds(channel)) && i < len(pixels); i++ {
-		engine.Leds(channel)[i] = rgbToColor(pixels[i])
+		engine.Leds(channel)[i] = rgbToHex(pixels[i])
 		_ = engine.Render()
 	}
 }
 
-// rgbToColor converts an array of [r,g,b] values from 0 to 255
+// rgbToHex converts an array of [r,g,b] values from 0 to 255
 // into a hex value represented by an uint32
-func rgbToColor(c []int) uint32 {
-	i, err := strconv.ParseUint(
-		fmt.Sprintf("%02x", c[0]) +
-		fmt.Sprintf("%02x", c[1]) +
-		fmt.Sprintf("%02x", c[2]),
-		16,
-		32,
-	)
-	if err != nil {
-		return 0
-	}
-	return uint32(i)
+func rgbToHex(rgb []int) uint32 {
+    return uint32(rgb[0])<<16 | uint32(rgb[1])<<8 | uint32(rgb[2])
 }
